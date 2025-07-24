@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.Python
+venv/
+.env
+*.log
+
+# Node.js / React
+node_modules/
+build/
+.DS_Store # macOS specific
+
+# Specific to this project
+backend/test_database.db # Ignore the SQLite database file
+.DS_Store
