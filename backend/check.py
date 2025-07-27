@@ -1,11 +1,7 @@
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+engine = create_engine("postgresql://mohanmanjhi@localhost:5432/sales_analytics")
 
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-models = genai.list_models()
-
-for model in models:
-    print(model)
+with engine.connect() as conn:
+    result = conn.execute(text("SELECT * FROM users LIMIT 1"))
+    for row in result:
+        print(row)
