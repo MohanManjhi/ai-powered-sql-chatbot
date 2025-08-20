@@ -1,12 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
+import AnalyticsChart from './components/AnalyticsChart';
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [cacheStats, setCacheStats] = useState(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [currentAnalyticsData, setCurrentAnalyticsData] = useState(null);
+  const [currentQuestion, setCurrentQuestion] = useState('');
+  const [currentSql, setCurrentSql] = useState('');
+  const [currentChartType, setCurrentChartType] = useState('auto');
+  const [schemaOverview, setSchemaOverview] = useState(null);
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
@@ -58,28 +64,29 @@ function App() {
     scrollToBottom();
   }, [messages]);
 
-  // Fetch cache stats on component mount
+  // Security note
   useEffect(() => {
-    const fetchCacheStats = async () => {
+    console.log('🔒 Security: SQL queries are not exposed to the frontend for data protection');
+  }, []);
+
+  // Fetch schema overview once to describe the database
+  useEffect(() => {
+    const fetchSchema = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/cache/stats');
-        const data = await response.json();
-        if (data.success) {
-          setCacheStats(data.cache_stats);
+        const res = await fetch('http://localhost:5001/api/schema');
+        const json = await res.json();
+        if (json.success && json.schema) {
+          const tables = Object.keys(json.schema);
+          setSchemaOverview({
+            tableCount: tables.length,
+            tables: tables.slice(0, 8),
+          });
         }
-      } catch (error) {
-        console.log('Could not fetch cache stats');
+      } catch (e) {
+        // ignore
       }
     };
-    
-    fetchCacheStats();
-    // Refresh cache stats every 30 seconds
-    const interval = setInterval(fetchCacheStats, 30000);
-    
-    // Security note
-    console.log('🔒 Security: SQL queries are not exposed to the frontend for data protection');
-    
-    return () => clearInterval(interval);
+    fetchSchema();
   }, []);
 
   const stopGeneration = () => {
@@ -138,10 +145,23 @@ function App() {
           suggestions: data.suggestions,
           capabilities: data.capabilities,
           data: data.data,
+          chart_request: data.chart_request,
           sender: 'bot',
           timestamp: new Date().toLocaleTimeString()
         };
         setMessages(prev => [...prev, botMessage]);
+        
+        // Auto-open analytics if user requested a chart
+        if (data.data && data.data.length > 0) {
+          const requestedChartType = data.chart_request?.requested ? (data.chart_request.type || 'auto') : null;
+          setCurrentAnalyticsData(data.data);
+          setCurrentQuestion(inputValue);
+          setCurrentSql('');
+          if (requestedChartType) {
+            setCurrentChartType(requestedChartType);
+            setShowAnalytics(true);
+          }
+        }
       } else {
         // Handle different types of errors
         let errorMessage;
@@ -203,16 +223,6 @@ function App() {
         <div className="chat-header">
           <h1>🤖 AI SQL Chatbot</h1>
           <p>Ask questions about your database in natural language</p>
-          {cacheStats && (
-            <div className="cache-stats">
-              <small>
-                🚀 Cache: {cacheStats.active_entries} active entries
-                {cacheStats.total_entries > 0 && (
-                  <span> ({cacheStats.expired_entries} expired)</span>
-                )}
-              </small>
-            </div>
-          )}
         </div>
 
         <div className="messages-container">
@@ -220,12 +230,25 @@ function App() {
             <div className="welcome-message">
               <div className="welcome-icon">💬</div>
               <h3>Welcome to AI SQL Chatbot!</h3>
-              <p>Try asking questions like:</p>
-              <ul>
-                <li>"Show me all users"</li>
-                <li>"What are the total orders?"</li>
-                <li>"Find users with orders above $100"</li>
-              </ul>
+              <p>
+                This database contains multiple tables. You don’t need to know their names — just ask your question in plain language (e.g., “show me monthly sales” or “top customers by revenue”). I’ll automatically find the right tables and generate the results for you. If you’d like, I can also show you which tables I’m using.
+              </p>
+              {schemaOverview && (
+                <div className="message-summary" style={{ textAlign: 'left' }}>
+                  <span className="summary-text">
+                    Connected database has {schemaOverview.tableCount} tables.
+                  </span>
+                </div>
+              )}
+              <div className="welcome-suggestions">
+                {(schemaOverview?.tables || []).slice(0,4).map((t) => (
+                  <div key={t} className="suggestion-chip" onClick={() => setInputValue(`Show me ${t}`)}>
+                    Show {t}
+                  </div>
+                ))}
+                <div className="suggestion-chip" onClick={() => setInputValue("Count total records")}>Count total records</div>
+                <div className="suggestion-chip" onClick={() => setInputValue("Show me monthly totals and a line chart")}>Monthly line chart</div>
+              </div>
             </div>
           )}
 
@@ -256,7 +279,10 @@ function App() {
                 {/* Show data table FIRST if available */}
                 {message.data && message.data.length > 0 && (
                   <div className="data-table-container">
-                    <strong>📊 Results:</strong>
+                    <div className="data-table-header">
+                      <span className="results-label">📊 Results ({message.data.length} rows)</span>
+                      {/* Analytics button removed */}
+                    </div>
                     <div className="data-table">
                       <table>
                         <thead>
@@ -296,15 +322,41 @@ function App() {
                 
                 {/* Show summary AFTER data */}
                 {message.summary && (
-                  <div className="message-summary-standalone">
-                    <strong>📊 Summary:</strong> {message.summary}
+                  <div className="message-summary">
+                    <span className="summary-text">{message.summary}</span>
                   </div>
                 )}
                 
+                {/* Export handled via Analytics panel; no extra download button */}
+                
+                {/* Post-response prompt */}
+                {message.data && message.data.length > 0 && (
+                  <div className="message-suggestions">
+                    <div className="suggestion-chips">
+                      <div className="suggestion-chip" onClick={() => {
+                        setCurrentAnalyticsData(message.data);
+                        setCurrentQuestion(message.text || 'Data Analysis');
+                        setCurrentSql('');
+                        setCurrentChartType(message.chart_request?.type || 'auto');
+                        setShowAnalytics(true);
+                      }}>Create Chart</div>
+                      <div className="suggestion-chip" onClick={() => {
+                        setCurrentAnalyticsData(message.data);
+                        setCurrentQuestion(message.text || 'Data Export');
+                        setCurrentSql('');
+                        setCurrentChartType('auto');
+                        setShowAnalytics(true);
+                      }}>Download</div>
+                    </div>
+                    <div style={{ marginTop: 6, color: '#6b7280', fontSize: '0.9rem' }}>
+                      👉 Do you want to create a chart of this data? Or do you want to download it?
+                    </div>
+                  </div>
+                )}
+
                 {/* Show suggestions */}
                 {message.suggestions && (
                   <div className="message-suggestions">
-                    <strong>💡 Try asking:</strong>
                     <div className="suggestion-chips">
                       {message.suggestions.map((suggestion, index) => (
                         <div key={index} className="suggestion-chip" onClick={() => setInputValue(suggestion)}>
@@ -318,7 +370,6 @@ function App() {
                 {/* Show capabilities */}
                 {message.capabilities && (
                   <div className="message-capabilities">
-                    <strong>🔧 {message.capabilities.description}</strong>
                     <div className="capabilities-list">
                       {message.capabilities.features.map((feature, index) => (
                         <div key={index} className="capability-item">
@@ -352,6 +403,23 @@ function App() {
 
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Inline Analytics (no modal) */}
+        {showAnalytics && currentAnalyticsData && (
+          <div className="data-table-container">
+            <div className="data-table-header">
+              <span className="results-label">📈 Analytics</span>
+            </div>
+            <div style={{ padding: '16px' }}>
+              <AnalyticsChart
+                data={currentAnalyticsData}
+                question={currentQuestion}
+                sql={currentSql}
+                initialChartType={currentChartType}
+              />
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="input-form">
           <div className="input-container">

@@ -1,0 +1,5 @@
+email,id,name,signup_date
+alice@example.com,1,Alice,"Tue, 10 Jan 2023 00:00:00 GMT"
+bob@example.com,2,Bob,"Tue, 14 Feb 2023 00:00:00 GMT"
+charlie@example.com,3,Charlie,"Mon, 20 Mar 2023 00:00:00 GMT"
+diana@example.com,4,Diana,"Tue, 25 Apr 2023 00:00:00 GMT"
