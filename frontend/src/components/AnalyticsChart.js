@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import './AnalyticsChart.css';
 
+const API_BASE = (() => {
+  const fromEnv = (process.env.REACT_APP_API_URL || '').replace(/\/+$/, '');
+  if (fromEnv) return fromEnv;
+  const isLocalhost = typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.hostname);
+  return isLocalhost ? 'http://localhost:5001' : '';
+})();
+
 const AnalyticsChart = ({ data, question, sql, onClose, initialChartType = 'auto' }) => {
   const [chartType, setChartType] = useState(initialChartType || 'auto');
   const [chartInstance, setChartInstance] = useState(null);
@@ -38,7 +45,7 @@ const AnalyticsChart = ({ data, question, sql, onClose, initialChartType = 'auto
     if (!data || data.length === 0) return;
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/analytics/chart', {
+      const response = await fetch(`${API_BASE}/api/analytics/chart`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, chart_type: chartType, rows: data }),
@@ -67,7 +74,7 @@ const AnalyticsChart = ({ data, question, sql, onClose, initialChartType = 'auto
     if (!data || data.length === 0) return;
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/analytics/export', {
+      const response = await fetch(`${API_BASE}/api/analytics/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows: data, format: exportFormat, filename: exportFilename }),
@@ -75,7 +82,7 @@ const AnalyticsChart = ({ data, question, sql, onClose, initialChartType = 'auto
       const result = await response.json();
       if (result.success) {
         const link = document.createElement('a');
-        link.href = `http://localhost:5001${result.download_url}`;
+        link.href = `${API_BASE}${result.download_url}`;
         link.download = result.filename;
         document.body.appendChild(link);
         link.click();

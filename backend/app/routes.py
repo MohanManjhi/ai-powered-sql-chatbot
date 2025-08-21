@@ -246,9 +246,15 @@ def generate_query_suggestions(question):
 
 @main.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    try:
+        from flask import request
+        origin = request.headers.get('Origin', '')
+        # Reflect only allowed origins; Flask-CORS already handles most cases
+        response.headers.add('Vary', 'Origin')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    except Exception:
+        pass
     return response
 
 @main.before_app_request
@@ -896,45 +902,50 @@ def generate_export_file(rows, export_format, filename):
 def generate_csv_export(rows, filename, timestamp):
     """Generate CSV export"""
     import csv
-    import tempfile
+    import os
     
     if not rows:
         return {"error": "No data to export"}
     
-    # Create temporary file
-    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
-    
-    # Write CSV data
-    writer = csv.DictWriter(temp_file, fieldnames=rows[0].keys())
-    writer.writeheader()
-    writer.writerows(rows)
-    
-    temp_file.close()
-    
+    # Ensure downloads directory exists
+    downloads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'downloads'))
+    os.makedirs(downloads_dir, exist_ok=True)
+
+    final_filename = f"{filename}_{timestamp}.csv"
+    final_path = os.path.join(downloads_dir, final_filename)
+
+    # Write CSV data to final path
+    with open(final_path, mode='w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
     return {
-        "download_url": f"/downloads/{filename}_{timestamp}.csv",
-        "filename": f"{filename}_{timestamp}.csv",
-        "file_path": temp_file.name
+        "download_url": f"/downloads/{final_filename}",
+        "filename": final_filename,
+        "file_path": final_path
     }
 
 def generate_excel_export(rows, filename, timestamp):
     """Generate Excel export"""
     try:
         import pandas as pd
-        import tempfile
-        
+        import os
+
+        downloads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'downloads'))
+        os.makedirs(downloads_dir, exist_ok=True)
+
+        final_filename = f"{filename}_{timestamp}.xlsx"
+        final_path = os.path.join(downloads_dir, final_filename)
+
         df = pd.DataFrame(rows)
-        temp_file = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
-        
-        with pd.ExcelWriter(temp_file.name, engine='openpyxl') as writer:
+        with pd.ExcelWriter(final_path, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name='Data', index=False)
-        
-        temp_file.close()
-        
+
         return {
-            "download_url": f"/downloads/{filename}_{timestamp}.xlsx",
-            "filename": f"{filename}_{timestamp}.xlsx",
-            "file_path": temp_file.name
+            "download_url": f"/downloads/{final_filename}",
+            "filename": final_filename,
+            "file_path": final_path
         }
     except ImportError:
         # Fallback to CSV if pandas/openpyxl not available
@@ -943,17 +954,21 @@ def generate_excel_export(rows, filename, timestamp):
 def generate_json_export(rows, filename, timestamp):
     """Generate JSON export"""
     import json
-    import tempfile
-    
-    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-    
-    json.dump(rows, temp_file, indent=2, default=str)
-    temp_file.close()
-    
+    import os
+
+    downloads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'downloads'))
+    os.makedirs(downloads_dir, exist_ok=True)
+
+    final_filename = f"{filename}_{timestamp}.json"
+    final_path = os.path.join(downloads_dir, final_filename)
+
+    with open(final_path, mode='w') as f:
+        json.dump(rows, f, indent=2, default=str)
+
     return {
-        "download_url": f"/downloads/{filename}_{timestamp}.json",
-        "filename": f"{filename}_{timestamp}.json",
-        "file_path": temp_file.name
+        "download_url": f"/downloads/{final_filename}",
+        "filename": final_filename,
+        "file_path": final_path
     }
 
 def generate_analytics_suggestions(schema):

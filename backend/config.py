@@ -4,7 +4,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    # Default to bundled SQLite if not provided
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL",
+        f"sqlite:////{os.path.abspath(os.path.join(os.path.dirname(__file__), 'mydb.sqlite3'))}"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Performance optimizations
@@ -13,7 +17,7 @@ class Config:
     CACHE_TIMEOUT = 300  # 5 minutes
     
     # LLM optimization settings
-    GEMINI_MODEL = "models/gemini-2.5-flash"  # Faster model
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")  # Faster model
     MAX_TOKENS = 1000  # Limit response length for speed
     TEMPERATURE = 0.1  # Lower temperature for more focused responses
     

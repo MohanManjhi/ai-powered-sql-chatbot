@@ -16,6 +16,13 @@ function App() {
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
+  const API_BASE = (() => {
+    const fromEnv = (process.env.REACT_APP_API_URL || '').replace(/\/+$/, '');
+    if (fromEnv) return fromEnv;
+    const isLocalhost = typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.hostname);
+    return isLocalhost ? 'http://localhost:5001' : '';
+  })();
+
   const formatCellValue = (value) => {
     if (value === null || value === undefined) {
       return '-';
@@ -73,7 +80,7 @@ function App() {
   useEffect(() => {
     const fetchSchema = async () => {
       try {
-        const res = await fetch('http://localhost:5001/api/schema');
+        const res = await fetch(`${API_BASE}/api/schema`);
         const json = await res.json();
         if (json.success && json.schema) {
           const tables = Object.keys(json.schema);
@@ -126,7 +133,7 @@ function App() {
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch('http://localhost:5001/api/nl-to-sql', {
+      const response = await fetch(`${API_BASE}/api/nl-to-sql`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
