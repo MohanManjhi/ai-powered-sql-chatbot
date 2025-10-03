@@ -1,0 +1,1 @@
+cd backend && "/Users/mohanmanjhi/Library/Mobile Documents/com~apple~CloudDocs/Working Projects/ai-sql-chatbot/.venv/bin/python" run.py

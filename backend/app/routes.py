@@ -361,86 +361,45 @@ def nl_to_sql():
 
     # Step 1b: Convert NL to SQL (with caching)
     print(f"🧠 Generating SQL for: {question[:50]}...")
-    sql = generate_sql_from_nl(question)
-    # Fallback: handle generic requests gracefully
-    if sql.startswith("ERROR"):
-        # If the user asked for all data without specifying a table, pick a reasonable default table
-        question_lower = question.lower()
-        generic_all_data = any(phrase in question_lower for phrase in [
-            'show me all data', 'show all data', 'all data', 'show everything'
-        ])
-        try:
-            schema = get_schema()
-            tables = list(schema.keys())
-        except Exception:
-            tables = []
-
-        if tables and generic_all_data:
-            sql = f"SELECT * FROM {tables[0]} LIMIT 50"
-        else:
-            # Provide helpful suggestions instead of just error
-            suggestions = generate_query_suggestions(question)
-            return jsonify({
-                "success": False,
-                "error": "I couldn't understand your question clearly. Let me help you with some suggestions:",
-                "suggestions": suggestions,
-                "original_question": question,
-                "type": "query_help"
-            }), 400
-
-    # Log query type for security monitoring (without exposing actual SQL)
-    if Config.LOG_QUERY_TYPE:
-        query_type = "SELECT" if sql.strip().upper().startswith("SELECT") else "OTHER"
-        print(f"🔒 Query type: {query_type}")
-        
-        if Config.LOG_TABLE_NAMES:
-            tables = extract_table_names(sql)
-            print(f"🔒 Tables accessed: {tables}")
-    
-    # Step 2: Execute SQL safely
-    # If LLM returned a non-SELECT but user intent seems generic all-data, try safe fallback
-    if not sql.strip().upper().startswith("SELECT"):
-        try:
-            schema = get_schema()
-            tables = list(schema.keys())
-        except Exception:
-            tables = []
-        if tables:
-            sql = f"SELECT * FROM {tables[0]} LIMIT 50"
-
-    query_result = execute_safe_sql(sql)
-    if not query_result.get("success", False):
-        # Provide helpful suggestions for SQL execution errors
+    sql_dict = generate_sql_from_nl(question)  # Now returns a dict
+    print(f"🔎 Gemini SQL dict: {sql_dict}")  # Log generated SQL
+    if isinstance(sql_dict, dict) and "error" in sql_dict:
         suggestions = generate_query_suggestions(question)
         return jsonify({
             "success": False,
-            "error": "I found some issues with the query. Here are some suggestions:",
+            "error": sql_dict["error"],
             "suggestions": suggestions,
             "original_question": question,
             "type": "query_help"
         }), 500
 
-    # Step 3: Postprocess result
-    rows = query_result.get("rows", [])
+    # Execute SQL on all databases and collect results
+    from .db import execute_sql_on_all_databases
+    query_results = execute_sql_on_all_databases(sql_dict)
+    print(f"🔎 Query results from all databases: {query_results}")  # Log results
 
-    # Answer: Natural text from result
-    answer = convert_result_to_natural_language(question, rows)
+    # Prepare merged or separate results for frontend
+    merged_rows = []
+    separate_results = {}
+    for db_name, rows in query_results.items():
+        if isinstance(rows, list):
+            merged_rows.extend(rows)
+            separate_results[db_name] = rows
+        else:
+            separate_results[db_name] = rows  # error case
 
-    # Summary: Delightful natural overview (with caching)
-    summary = generate_summary(question, rows)
-
+    # Generate answer and summary from merged results
+    answer = convert_result_to_natural_language(question, merged_rows)
+    summary = generate_summary(question, merged_rows)
     total_time = time.time() - start_time
-    print(f"⚡ Total processing time: {total_time:.2f}s")
-
-    # Detect chart intent
     chart_request = detect_chart_intent(question)
 
-    # ✅ Return clean output
     return jsonify({
         "success": True,
         "answer": answer,
         "summary": summary,
-        "data": rows,
+        "data": merged_rows,
+        "separate_results": separate_results,
         "chart_request": chart_request,
         "performance": {
             "total_time": round(total_time, 2),

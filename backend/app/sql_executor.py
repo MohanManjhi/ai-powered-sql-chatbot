@@ -28,8 +28,7 @@ def is_safe_query(sql):
     # Ensure it starts with 'select' and doesn't contain dangerous keywords
     return sql.startswith("select") and not re.search(r"\b(update|delete|insert|drop|alter|create)\b", sql)
 
-
-def execute_safe_sql(sql):
+def execute_safe_sql(sql, engine=engine):
     # Clean markdown fences if present
     sql = clean_sql(sql)
 
@@ -37,10 +36,14 @@ def execute_safe_sql(sql):
         return {"success": False, "error": "Only safe SELECT queries are allowed."}
 
     try:
+        print("📝 Final SQL to execute:", repr(sql))
+
+        stmt = text(sql)  # ✅ Always wrap in text()
         with engine.connect() as connection:
-            result = connection.execute(text(sql))
+            result = connection.execute(stmt)
             rows = [dict(row._mapping) for row in result]
             return {"success": True, "rows": rows}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
 
