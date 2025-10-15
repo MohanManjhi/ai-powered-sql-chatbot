@@ -1,0 +1,5 @@
+body.dark-mode { background: #222 !important; color: #eee !important; }
+.navbar-dark.bg-primary { background: #0d6efd !important; }
+.table { background: #fff; }
+body.dark-mode .table { background: #222; color: #eee; }
+body.dark-mode .table th, body.dark-mode .table td { color: #eee; }

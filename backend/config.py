@@ -11,6 +11,9 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/yourdb")
+
+
     # Performance optimizations
     REQUEST_TIMEOUT = 30  # seconds
     LLM_TIMEOUT = 25  # seconds

@@ -607,3 +607,30 @@ body {
     height: 32px;
   }
 }
+
+/* Navigation bar for chatbot switching */
+.navbar {
+  background: #10a37f;
+  padding: 1em;
+  display: flex;
+  gap: 2em;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2em;
+}
+
+.navbar a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.1rem;
+  padding: 0.5em 1em;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.navbar a:hover,
+.navbar a.active {
+  background: #0d8a6f;
+  text-decoration: underline;
+}
