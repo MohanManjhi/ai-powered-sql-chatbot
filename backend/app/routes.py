@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 import time
 import re
 import json
+from app.utils.json_encoder import MongoJSONEncoder
+from sqlalchemy import text
 
 # --- Database & LLM Imports ---
 # SQL Components
@@ -12,6 +14,7 @@ from .sql_executor import execute_safe_sql # Used by /api/query (single SQL exec
 # MongoDB Components
 from app.db_mongo import get_mongo_collections_schema # Gets MongoDB collection schema
 from app.db_mongo import execute_mongo_query # Executes MongoDB query
+from app.db_mongo import is_mongo_available, last_mongo_uri_tried
 import os
 from urllib.parse import urlparse
 
@@ -249,6 +252,41 @@ def get_db_schema():
         "mongo_schema": mongo_schema
     })
 
+
+@main.route('/api/health-details', methods=['GET'])
+def health_details():
+    """Return detailed health status for configured SQL engines and MongoDB.
+
+    - sql: for each configured DB (from app.db.engines) return reachable and error
+    - mongo: reachable boolean and last tried URI
+    """
+    # Import here to avoid circular imports at module load time
+    import importlib
+    db_module = importlib.import_module('app.db')
+
+    sql_status = {}
+    try:
+        for name, engine in getattr(db_module, 'engines', {}).items():
+            try:
+                with engine.connect() as conn:
+                    # Run a safe lightweight check
+                    conn.execute(text('SELECT 1'))
+                    sql_status[name] = {'ok': True}
+            except Exception as e:
+                sql_status[name] = {'ok': False, 'error': str(e)}
+    except Exception as e:
+        sql_status = {'error': f'Could not evaluate SQL engines: {str(e)}'}
+
+    # Mongo status
+    try:
+        mongo_ok = is_mongo_available()
+        mongo_uri = last_mongo_uri_tried()
+        mongo_status = {'ok': bool(mongo_ok), 'uri_tried': mongo_uri}
+    except Exception as e:
+        mongo_status = {'ok': False, 'error': str(e)}
+
+    return jsonify({'success': True, 'sql': sql_status, 'mongo': mongo_status})
+
 @main.route("/api/query", methods=["POST"])
 def run_query():
     """Executes pre-generated query for SQL or MongoDB."""
@@ -302,6 +340,154 @@ def run_query():
             })
         except Exception as e:
             return jsonify({"success": False, "error": f"SQL execution error: {str(e)}"}), 500
+
+@main.route("/api/nl-to-mongodb", methods=["POST"])
+def nl_to_mongodb():
+    """Handle natural language queries for MongoDB"""
+    start_time = time.time()
+    question = ""
+    mongo_error = None
+    
+    try:
+        data = request.get_json()
+        question = data.get("question", "")
+        
+        # Check for greeting
+        if is_greeting_or_general(question):
+            return handle_greeting_or_general(question, "mongo")
+
+        # Check if it's a schema question
+        existence = detect_existence_question(question, "mongo")
+        if existence is not None:
+            total_time = time.time() - start_time
+            return jsonify({
+                "success": True,
+                "answer": existence["answer"],
+                "summary": existence.get("summary"),
+                "data": [],
+                "db_type_used": "mongo",
+                "performance": {"total_time": round(total_time, 2), "cached": "none"}
+            })
+
+        # Generate and execute MongoDB query
+        mongo_query_dict = generate_mongo_query_from_nl(question)
+        print(f"🔎 Attempting Mongo. Gemini MongoDB dict: {mongo_query_dict}")
+
+        if isinstance(mongo_query_dict, dict) and "error" in mongo_query_dict:
+            mongo_error = mongo_query_dict["error"]
+            print(f"❌ MongoDB Generation failed: {mongo_error}")
+            suggestions = generate_query_suggestions(question, "mongo")
+            return jsonify({
+                "success": False,
+                "error": f"Failed to generate MongoDB query: {mongo_error}",
+                "suggestions": suggestions,
+                "type": "query_failure"
+            }), 500
+
+        # Execute MongoDB query
+        if isinstance(mongo_query_dict, dict) and "collection" in mongo_query_dict:
+            collection = mongo_query_dict.get("collection")
+            filter_query = mongo_query_dict.get("filter", {})
+            projection = mongo_query_dict.get("projection")
+            limit = mongo_query_dict.get("limit", 50)
+            db_name = mongo_query_dict.get("db_name")
+            db_name_used = None
+            rows = []
+            
+            try:
+                if db_name:
+                    rows = execute_mongo_query(db_name, collection, filter_query, projection, limit)
+                    db_name_used = db_name
+                    # If LLM suggested DB contained no rows, probe other DBs for the data
+                    if not rows:
+                        from app.db_mongo import find_db_for_collection, execute_mongo_query_across_dbs
+                        resolved_db = find_db_for_collection(collection, filter_query)
+                        if resolved_db and resolved_db != db_name:
+                            rows = execute_mongo_query(resolved_db, collection, filter_query, projection, limit)
+                            db_name_used = resolved_db
+                        else:
+                            # As a last resort scan all DBs and take the first non-empty result
+                            aggregated = execute_mongo_query_across_dbs(collection=collection, filter_query=filter_query, projection=projection, limit=limit)
+                            for dbn, res in aggregated.items():
+                                if dbn != db_name and isinstance(res, list) and res:
+                                    rows = res
+                                    db_name_used = dbn
+                                    break
+                else:
+                    # Try to find the best DB for this collection+filter
+                    from app.db_mongo import find_db_for_collection, execute_mongo_query_across_dbs
+                    resolved_db = find_db_for_collection(collection, filter_query)
+                    if resolved_db:
+                        rows = execute_mongo_query(resolved_db, collection, filter_query, projection, limit)
+                        db_name_used = resolved_db
+                    else:
+                        # No single DB identified, search across DBs and take first non-empty
+                        aggregated = execute_mongo_query_across_dbs(collection=collection, filter_query=filter_query, projection=projection, limit=limit)
+                        for dbn, res in aggregated.items():
+                            if isinstance(res, list) and res:
+                                rows = res
+                                db_name_used = dbn
+                                break
+
+                if rows:
+                    print("✅ MongoDB execution successful and data found.")
+                    answer = convert_result_to_natural_language(question, rows)
+                    summary = generate_summary(question, rows)
+                    total_time = time.time() - start_time
+                    chart_request = detect_chart_intent(question)
+                    
+                    return jsonify({
+                        "success": True,
+                        "answer": answer,
+                        "summary": summary,
+                        "data": rows,
+                        "db_type_used": "mongo",
+                        "db_name_used": db_name_used,
+                        "chart_request": chart_request,
+                        "performance": {"total_time": round(total_time, 2), "cached": "none"}
+                    })
+
+            except Exception as e:
+                mongo_error = str(e)
+                print(f"❌ MongoDB Execution failed: {mongo_error}")
+                suggestions = generate_query_suggestions(question, "mongo")
+            error_msg = f"MongoDB execution failed: {mongo_error}"
+            # Add collection info to error message if collection doesn't exist
+            if mongo_error and "Collection does not exist" in str(mongo_error):
+                try:
+                    from app.db_mongo import get_mongo_collections_schema
+                    schema = get_mongo_collections_schema()
+                    if db_name and db_name in schema:
+                        collections = list(schema[db_name].keys())
+                        error_msg += f"\nAvailable collections in {db_name}: {', '.join(collections)}"
+                except Exception as schema_error:
+                    print(f"Error getting collection schema: {schema_error}")
+            
+            # Construct and return error response
+            return jsonify({
+                "success": False,
+                "error": error_msg,
+                "suggestions": suggestions,
+                "type": "execution_failure"
+            }), 500
+
+        # If we get here, the query dict didn't have a collection or was malformed
+        return jsonify({
+            "success": False,
+            "error": "Could not understand the MongoDB query request",
+            "suggestions": generate_query_suggestions(question, "mongo"),
+            "type": "parsing_failure"
+        }), 500
+
+    except Exception as e:
+        print(f"CRITICAL UNCAUGHT ERROR in nl_to_mongodb: {e}")
+        suggestions = generate_query_suggestions(question, "mongo")
+        return jsonify({
+            "success": False,
+            "error": f"An unexpected server error occurred: {str(e)}",
+            "suggestions": suggestions,
+            "type": "server_error"
+        }), 500
 
 @main.route("/api/nl-to-sql", methods=["POST"])
 def nl_to_sql():
@@ -421,20 +607,20 @@ def nl_to_sql():
             
         # 2. Check for successful dict structure: If it generated a query.
         elif isinstance(mongo_query_dict, dict) and "collection" in mongo_query_dict:
+            mongo_error = None
             try:
                 collection = mongo_query_dict.get("collection")
                 filter_query = mongo_query_dict.get("filter", {})
                 projection = mongo_query_dict.get("projection")
                 limit = mongo_query_dict.get("limit", 50)
                 db_name = mongo_query_dict.get("db_name")
-                db_name = mongo_query_dict.get("db_name")
                 db_name_used = None
-                if db_name:
-                    rows = execute_mongo_query(db_name, collection, filter_query, projection, limit)
-                    db_name_used = db_name
-                    # If LLM suggested DB contained no rows, probe other DBs for the data
-                    if not rows:
-                        try:
+                try:
+                    if db_name:
+                        rows = execute_mongo_query(db_name, collection, filter_query, projection, limit)
+                        db_name_used = db_name
+                        # If LLM suggested DB contained no rows, probe other DBs for the data
+                        if not rows:
                             from app.db_mongo import find_db_for_collection, execute_mongo_query_across_dbs
                             resolved_db = find_db_for_collection(collection, filter_query)
                             if resolved_db and resolved_db != db_name:
@@ -450,9 +636,13 @@ def nl_to_sql():
                                         rows = res
                                         db_name_used = dbn
                                         break
-                        except Exception:
-                            # ignore probe errors and keep original empty rows
-                            pass
+                except Exception as e:
+                    mongo_error = str(e)
+                    print(f"Error executing MongoDB query: {mongo_error}")
+                    rows = []
+                except Exception as e:
+                    print(f"Error probing databases: {e}")
+                    # Continue with empty rows
                 else:
                     # Try to find the best DB for this collection+filter
                     from app.db_mongo import find_db_for_collection, execute_mongo_query_across_dbs

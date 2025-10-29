@@ -57,12 +57,40 @@ def generate_mongo_query_from_nl(question: str) -> dict:
         if m:
             db = m.group(1)
 
-    # If no collection explicitly found, try to find common collection keywords
+    # If no collection explicitly found from schema, try to find common collection keywords
     if not coll:
-        for candidate in ['images', 'files', 'photos', 'products', 'users']:
-            if candidate in ql:
-                coll = candidate
+        # Map common terms to collection names
+        term_to_collection = {
+            'photo': 'photos',
+            'image': 'photos',
+            'picture': 'photos',
+            'file': 'files',
+            'car': 'cars',
+            'vehicle': 'cars',
+            'product': 'products',
+            'user': 'users'
+        }
+        
+        for term, collection in term_to_collection.items():
+            if term in ql:
+                coll = collection
                 break
+
+    # First, try to determine the collection from available collections
+    try:
+        from app.db_mongo import get_mongo_collections_schema
+        schema = get_mongo_collections_schema() or {}
+        all_collections = set()
+        for db_cols in schema.values():
+            all_collections.update(db_cols.keys())
+        
+        # If collection is in the question, use it
+        for collection in all_collections:
+            if collection.lower() in ql:
+                coll = collection
+                break
+    except Exception:
+        pass
 
     # Basic filter extraction: look for quoted strings or 'name is', 'filename is' etc.
     filter_q = {}

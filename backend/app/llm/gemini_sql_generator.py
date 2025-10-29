@@ -88,13 +88,19 @@ SQL Queries (JSON):"""
             return {"error": "Gemini output was empty.", "raw_output": sql_result}
         try:
             sql_dict = json.loads(sql_result)
+            
+            # Validate that all values are actual SQL queries
+            for db, query in sql_dict.items():
+                if isinstance(query, str) and not query.strip().lower().startswith('select'):
+                    return {"error": f"Invalid SQL query for database '{db}'. Only SELECT queries are allowed."}
+            
             generation_time = time.time() - start_time
             print(f"⚡ SQL generated in {generation_time:.2f}s: {nl_query[:50]}...")
             cache_handler.set(cache_key, sql_dict)
             return sql_dict
         except json.JSONDecodeError as jde:
             logging.error(f"Gemini output JSON decode error: {jde}\nRaw output: {sql_result}")
-            return {"error": f"Gemini output was invalid JSON: {jde}", "raw_output": sql_result}
+            return {"error": "The model did not generate a valid SQL query. Please try rephrasing your question."}
     except Exception as e:
         error_msg = f"ERROR: {str(e)}"
         print(f"❌ SQL generation failed: {error_msg}")

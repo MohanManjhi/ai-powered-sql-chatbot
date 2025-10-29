@@ -4,11 +4,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    # Default to bundled SQLite if not provided
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        f"sqlite:////{os.path.abspath(os.path.join(os.path.dirname(__file__), 'mydb.sqlite3'))}"
-    )
+    # Use the PostgreSQL database from environment variables
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL_2', None)  # Using books_db as default
+    if not SQLALCHEMY_DATABASE_URI:
+        # Fallback to SQLite if no database URL is provided
+        SQLALCHEMY_DATABASE_URI = f"sqlite:////{os.path.abspath(os.path.join(os.path.dirname(__file__), 'mydb.sqlite3'))}"
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/yourdb")
