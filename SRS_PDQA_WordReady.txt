@@ -1,0 +1,185 @@
+SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+PDQA — AI-POWERED SQL/NoSQL CHATBOT
+
+Project Title: PDQA — AI-Powered SQL/NoSQL Chatbot
+Repository: https://github.com/MohanManjhi/ai-powered-sql-chatbot
+
+Submitted To: Assistant Professor Ashwini Sharma
+
+Team Members:
+- Shivani Choudhary - 0801CS233D08
+- Mohan Mnajhi - 0801CS233D05
+- Anushtha Singh Kushwah - 0801CS233D01
+- Harshita Bamniya - 0801CS23D04
+- Shreyash Tiwari - 0801CS233D09
+
+Date: 30 October 2025
+
+-----------------------------------------------------------------
+
+PROJECT OVERVIEW AND OBJECTIVES
+-------------------------------
+A unified AI-driven chatbot platform enabling users to query, explore, and analyze both SQL (SQLite, PostgreSQL) and NoSQL (MongoDB) databases using natural language. The goal is to lower the technical barrier to database analytics, empowering business users and analysts to retrieve insights without writing code or raw queries. The application aims to be intuitive, fast, secure, and extensible for production scenarios.
+
+Key objectives:
+- Provide natural-language access to SQL and NoSQL data sources.
+- Convert user questions into safe executable queries (SQL SELECT and MongoDB find) using a pluggable LLM backend.
+- Display tabular and chart visualizations when intent indicates analytics.
+- Keep the system secure by sanitizing schema/context and preventing destructive queries.
+
+GIT HUB / SOURCE
+----------------
+The project's source code repository is available at:
+https://github.com/MohanManjhi/ai-powered-sql-chatbot
+
+STAKEHOLDER INFORMATION
+-----------------------
+Primary Stakeholders:
+- Business/Data Analysts
+- Software Engineers and Developers working on the product
+- Database Administrators (DBAs)
+- Project/Product Managers
+- Non-technical Business Users who want simple access to data
+
+Secondary Stakeholders:
+- Infrastructure/IT teams (deployment, monitoring)
+- Compliance and Security officers (auditing, policies)
+- Executive sponsors and reviewers
+
+FUNCTIONAL REQUIREMENTS
+-----------------------
+1. Natural language to query conversion
+- The system shall accept a natural language question and attempt to convert it into a safe SQL SELECT or a MongoDB `find` query using an LLM (e.g., Google Gemini) or deterministic fallback heuristics.
+
+2. Query execution and results
+- The system shall execute generated or validated queries against the configured databases (SQLite, PostgreSQL, MongoDB) and return results in JSON format.
+- SQL results: return JSON containing `columns` and `rows` arrays.
+- MongoDB results: return JSON containing `docs` (documents) with `_id` removed by default.
+
+3. Schema discovery and suggestions
+- The system shall expose an endpoint that returns sanitized database schemas for generating context-aware suggestions.
+
+4. Visualization intent detection
+- The system shall detect chart/visualization intent in the user's question (e.g., "plot sales by month") and return a payload suitable for frontend chart rendering.
+
+5. Health and monitoring endpoints
+- The system shall provide `/health` and `/api/health-details` endpoints reporting DB connectivity and service health.
+
+6. Error handling and user-friendly feedback
+- All errors must be returned with user-friendly messages and, when possible, actionable suggestions.
+
+7. Safety and restrictions
+- LLM-generated SQL must be validated and limited to SELECT queries only. Any non-SELECT SQL generated should be rejected and logged.
+- MongoDB queries must be read-only (find) and should not return raw binary fields.
+
+8. API coverage
+- The backend shall provide REST API endpoints for master NL handling, SQL execution, NoSQL execution, schema retrieval, and analytics.
+
+NON-FUNCTIONAL REQUIREMENTS
+---------------------------
+Performance
+- Target sub-second response for common, cached queries. End-to-end response latency for simple read queries should aim to be under 2 seconds (dependent on DB and LLM latencies). LLM timeouts should be configurable (suggested 25-30 seconds max).
+
+Security
+- Do not expose raw generated SQL to the frontend or users.
+- Sanitize schema and remove large binary or sensitive fields before including in LLM prompts.
+- Use environment-configurable DB URIs and secrets (via `.env`) and do not commit secrets to VCS.
+
+Scalability
+- Backend shall be stateless (suitable for horizontal scaling). Use connection pooling for SQL engines.
+- Support deployment into containers (Docker) and orchestration for scalability.
+
+Availability
+- Provide health checks for SQL and Mongo backends and fallback strategies if a backend is unreachable.
+
+Maintainability
+- Modular code structure (clear separation: app/db, app/llm, app/utils, frontend components).
+- Use documented config and dependency manifests for reproducible setup.
+
+SYSTEM ARCHITECTURE AND TECHNOLOGY STACK
+----------------------------------------
+Frontend:
+- React.js (Create React App style), with components for MasterChatbot, SQLChatbot, NoSQLChatbot, Analytics, and Loader overlays.
+
+Backend:
+- Python 3.12+ and Flask, with modular blueprints (`app/`), utilities (`app/utils`), LLM generators (`app/llm`) and DB helpers (`app/db.py`, `app/db_mongo.py`).
+- SQL layer: SQLite (sample DB in `backend/mydb.sqlite3`) and support for PostgreSQL via SQLAlchemy.
+- NoSQL layer: MongoDB using `pymongo`.
+- LLM integration: `google-generativeai` client (Gemini) used by generator modules; generators have fallback heuristics to work without an LLM key.
+
+Deployment & DevOps
+- Docker-compatible deployment (optional docker-compose included).
+- Use environment variables for configuration (`.env` usage documented in backend). Gunicorn recommended for production process management.
+
+USER ROLES AND PERMISSIONS
+--------------------------
+Current (MVP) mode:
+- Default open/demo mode (no authentication) for development and demonstration.
+
+Future plans:
+- Add Role-Based Access Control (RBAC): viewers (read-only), analysts (exportable access), admins (configuration management).
+
+BUSINESS RULES AND CONSTRAINTS
+------------------------------
+- Only sanitized queries may be executed; user-supplied raw queries are not executed by default.
+- The system must not return large binary fields or raw `_id` fields to the frontend.
+- Generated SQL must be SELECT-only. Any LLM output that violates this rule must be rejected and logged.
+- System actions should be stateless and idempotent where possible.
+
+TESTING REQUIREMENTS
+--------------------
+Unit Testing
+- Python unit tests for pure functions and utilities (parsers, heuristics, JSON encoders).
+- JavaScript unit tests for frontend components where applicable.
+
+Integration Testing
+- API-level tests that use the Flask test client or run against a local test server.
+- Use the provided `backend/mydb.sqlite3` for SQL integration tests and a local or containerized MongoDB instance for NoSQL tests.
+- Mock LLM calls in CI to avoid external dependencies.
+
+Functional Testing
+- End-to-end flows: NL question -> generated query -> executed result -> formatted response and optional chart.
+
+Non-Functional Testing
+- Performance/load testing using k6/locust/wrk to verify latency and throughput targets.
+- Security scans using `pip-audit`, `safety`, and static analyzers (bandit) to find vulnerabilities and code smells.
+
+User Acceptance Testing (UAT)
+- Users verify that natural language queries return correct and actionable results and charts for sample datasets.
+
+ACCEPTANCE CRITERIA
+-------------------
+- A business user can ask questions about connected databases and receive correct tables or charts.
+- The system supports both SQL and NoSQL backends for read-only exploration.
+- Schema suggestions and dynamic hints work without the analyst needing to know schema in advance.
+- Destructive queries are blocked and result in clear, actionable feedback.
+- Health and analytics endpoints provide accurate status and basic metrics.
+
+DEPENDENCIES AND ASSUMPTIONS
+----------------------------
+- Python 3.12+ and backend dependencies listed in `backend/requirements.txt` (Flask, SQLAlchemy, google-generativeai, pandas, numpy, etc.).
+- Node.js 18+ and frontend dependencies from `frontend/package.json` for building the UI.
+- Access to a running MongoDB and optionally PostgreSQL for full feature coverage (SQLite included for sample data).
+- LLM API key (Gemini) available and configured in environment variables for full LLM-driven query generation. Without an LLM key, fallback heuristics will be used.
+
+ADDITIONAL NOTES
+----------------
+1. How to reproduce tests and quick checks:
+- Create and activate a Python virtual environment.
+- Install backend dependencies: `pip install -r backend/requirements.txt`.
+- Run the SQLite quick check: `python3 backend/test_sqlite.py` (uses included `backend/mydb.sqlite3`).
+- To run the full test suite (unit/integration): install `pytest` and run `pytest` from `backend/`.
+
+2. File locations of interest in the repo:
+- Backend main app: `backend/app/` (routes, db helpers, llm generators, utils)
+- Quick tests: `backend/test_sqlite.py`, `backend/test_api.py`, `backend/test_queries.py`.
+- Frontend: `frontend/src/components/` (UI components for chatbots and analytics).
+
+3. Suggested next steps for the project:
+- Add pytest-style unit tests for the heuristic functions and safe SQL validator (if not present) and add a CI action to run them.
+- Create a `tests/fixtures/` folder with SQL and Mongo JSON fixtures for reproducible integration tests.
+- Create a GitHub Actions workflow to run unit tests and publish coverage.
+
+-----------------------------------------------------------------
+
+END OF DOCUMENT

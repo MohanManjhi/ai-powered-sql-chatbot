@@ -1,0 +1,27 @@
+Test Case ID,Test Type,Test Suite,Test Case Description,Status
+IT-API-001,Integration,SQL Query Endpoint,End-to-End SQL Query Flow,Passed
+IT-API-002,Integration,SQL Query Endpoint,MongoDB Query Endpoint,Passed
+IT-API-003,Integration,SQL Query Endpoint,Schema Endpoint Integration,Passed
+IT-API-004,Integration,SQL Query Endpoint,Health Check Endpoint,Passed
+IT-DB-001,Integration,Multi-Database Operations,Concurrent SQL Database Queries,Passed
+IT-DB-002,Integration,Multi-Database Operations,SQL to MongoDB Transition,Passed
+IT-DB-003,Integration,Multi-Database Operations,Transaction Rollback,Passed
+IT-LLM-001,Integration,LLM-Database Integration,Schema-Aware Query Generation,Passed
+IT-LLM-002,Integration,LLM-Database Integration,Multi-Turn Conversation,Passed
+IT-FE-001,Integration,UI to API Integration,Chat Message Flow,Passed
+IT-FE-002,Integration,UI to API Integration,Result Table Rendering,Passed
+FT-NLP-001,Functional,Query Understanding,Simple SELECT Query,Passed
+FT-NLP-002,Functional,Query Understanding,Filtered Query,Passed
+FT-NLP-003,Functional,Query Understanding,Aggregate Query,Passed
+FT-NLP-004,Functional,Query Understanding,JOIN Query,Passed
+FT-NLP-005,Functional,Query Understanding,Date Range Query,Passed
+FT-DB-001,Functional,Database Switching,SQL Database Query,Passed
+FT-DB-002,Functional,Database Switching,PostgreSQL Query,Passed
+FT-DB-003,Functional,Database Switching,MongoDB Query,Passed
+FT-ERR-001,Functional,Error Scenarios,Invalid Query Handling,Passed
+FT-ERR-002,Functional,Error Scenarios,Database Connection Error,Passed
+FT-ERR-003,Functional,Error Scenarios,LLM API Failure,Passed
+FT-ERR-004,Functional,Error Scenarios,Empty Result Set,Passed
+FT-ERR-005,Functional,Error Scenarios,Query Timeout,Passed
+FT-MU-001,Functional,Concurrent Users,Multiple Simultaneous Queries,Passed
+FT-MU-002,Functional,Concurrent Users,Session Isolation,Passed

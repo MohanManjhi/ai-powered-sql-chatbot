@@ -6,8 +6,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  background: #ffffff;
-  color: #374151;
+  background: var(--bg);
+  color: var(--fg);
   min-height: 100vh;
   line-height: 1.6;
 }
@@ -16,6 +16,33 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Theme variables */
+:root {
+  --bg: #ffffff;
+  --fg: #374151;
+  --muted: #6b7280;
+  --accent: #10a37f;
+  --card-bg: #ffffff;
+  --sidebar-bg: #f8fafc;
+  --sidebar-text: #064e3b;
+  --sidebar-sub: #6b7280;
+  --sidebar-hover: rgba(16,163,127,0.08);
+  --sidebar-border: rgba(2,6,23,0.06);
+}
+
+[data-theme="dark"] {
+  --bg: #071124;
+  --fg: #e6eef6;
+  --muted: #9fb3c8;
+  --accent: #16a34a;
+  --card-bg: #062033;
+  --sidebar-bg: #04202b;
+  --sidebar-text: #cce9dd;
+  --sidebar-sub: #9fb3c8;
+  --sidebar-hover: rgba(255,255,255,0.04);
+  --sidebar-border: rgba(255,255,255,0.06);
 }
 
 .chat-container {
@@ -27,12 +54,54 @@ body {
   flex-direction: column;
 }
 
+/* ensure chat card and boxes are fluid on small screens */
+.chat-box {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Master (Assistant) hero styles */
+.master-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(16,185,129,0.03));
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+}
+.master-hero .hero-left h1 {
+  margin: 0 0 6px 0;
+  font-size: 1.5rem;
+}
+.master-hero .hero-left p {
+  margin: 0;
+  color: #4b5563;
+}
+.hero-badge {
+  background: rgba(15, 118, 110, 0.08);
+  color: #065f46;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* Make chat area feel like a standalone card */
+.chat-box {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(16,24,40,0.04);
+}
+
 .chat-header {
-  background: #ffffff;
-  color: #374151;
+  background: var(--card-bg);
+  color: var(--fg);
   padding: 20px;
   text-align: center;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -73,7 +142,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 0;
-  background: #ffffff;
+  background: var(--card-bg);
 }
 
 .welcome-message {
@@ -127,27 +196,28 @@ body {
 }
 
 .message:hover {
-  background: #f9fafb;
+  background: rgba(0,0,0,0.02);
 }
 
 .message.user {
-  background: #f3f4f6;
+  background: rgba(16,163,127,0.06);
 }
 
 .message.bot {
-  background: #ffffff;
+  background: var(--card-bg);
 }
 
 .message-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   flex-shrink: 0;
+  background: linear-gradient(180deg,#eef2ff,#eefcf6);
 }
 
 .message.user .message-avatar {
@@ -171,6 +241,30 @@ body {
   line-height: 1.6;
   margin-bottom: 12px;
   white-space: pre-wrap;
+}
+
+/* make message text and other content break/wrap on small screens */
+.message-text, .welcome-message p, .message-summary, .summary-text, .message-suggestions, .suggestion-chip, .original-question {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* reduce font sizes and paddings on small screens for readability */
+@media (max-width: 600px) {
+  .welcome-message { padding: 36px 14px; max-width: 100%; }
+  .welcome-message h3 { font-size: 1.15rem; }
+  .hero-left h1 { font-size: 1.25rem; }
+  .welcome-message p, .message-text { font-size: 0.95rem; }
+  .suggestion-chip { font-size: 0.85rem; padding: 8px 10px; }
+  .original-question { font-size: 0.9rem; padding: 8px; }
+  .message { padding: 12px; }
+  .original-question .retry-button { display: block; margin: 8px 0 0 0; }
+}
+
+@media (max-width: 420px) {
+  .hero-left h1 { font-size: 1.05rem; }
+  .chat-header h1 { font-size: 1.2rem; }
+  .message-text { font-size: 0.92rem; }
 }
 
 .message.error .message-text {
@@ -224,7 +318,7 @@ body {
 }
 
 .input-form {
-  background: #ffffff;
+  background: var(--card-bg);
   border-top: 1px solid #e5e7eb;
   position: sticky;
   bottom: 0;
@@ -237,12 +331,17 @@ body {
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
+  background: var(--card-bg);
+  border: 1px solid rgba(0,0,0,0.06);
   border-radius: 12px;
   padding: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+
+
+/* make action buttons stack on small screens and inputs full width */
+.input-container .button-group { flex-shrink: 0; }
+.input-container .send-button { white-space: nowrap; }
 
 .input-container textarea {
   flex: 1;
@@ -372,8 +471,8 @@ body {
 
 /* Data table styling */
 .data-table-container {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--card-bg);
+  border: 1px solid rgba(0,0,0,0.06);
   border-radius: 8px;
   margin: 16px 0;
   overflow: hidden;
@@ -421,17 +520,17 @@ body {
 .data-table table {
   width: 100%;
   border-collapse: collapse;
-  background: #ffffff;
+  background: var(--card-bg);
 }
 
 .data-table th {
-  background: #f9fafb;
-  color: #374151;
+  background: rgba(0,0,0,0.02);
+  color: var(--fg);
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
   font-size: 0.9rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
 .data-table td {
@@ -442,17 +541,17 @@ body {
 }
 
 .data-table tr:hover {
-  background: #f9fafb;
+  background: rgba(0,0,0,0.02);
 }
 
 /* Message components styling */
 .message-summary {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.06);
   border-radius: 8px;
   padding: 12px 16px;
   margin: 12px 0;
-  color: #374151;
+  color: var(--fg);
 }
 
 .message-suggestions {
@@ -475,14 +574,21 @@ body {
 }
 
 .suggestion-chip {
-  background: #f3f4f6;
-  color: #374151;
+  background: rgba(0,0,0,0.03);
+  color: var(--fg);
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.suggestion-chips > .suggestion-chip { flex: 0 1 auto; }
+
+@media (max-width: 480px) {
+  .suggestion-chips { justify-content: stretch; }
+  .suggestion-chips > .suggestion-chip { flex: 1 1 auto; text-align: center; }
 }
 
 .suggestion-chip:hover {
@@ -511,7 +617,7 @@ body {
 .performance-metrics {
   margin-top: 8px;
   padding: 4px 8px;
-  background: #f3f4f6;
+  background: rgba(0,0,0,0.03);
   border-radius: 4px;
   text-align: center;
 }
@@ -533,8 +639,8 @@ body {
   width: 8px;
 }
 
-.messages-container::-webkit-scrollbar-track {
-  background: #ffffff;
+messages-container::-webkit-scrollbar-track {
+  background: var(--bg);
 }
 
 .messages-container::-webkit-scrollbar-thumb {
@@ -569,6 +675,13 @@ body {
     padding: 8px 12px;
     font-size: 0.8rem;
   }
+
+  .input-container {
+    margin: 0 8px;
+    padding: 8px;
+  }
+  .button-group { flex-wrap: wrap; gap: 8px; }
+  .send-button { width: 100%; }
 }
 
 @media (max-width: 480px) {
@@ -608,19 +721,30 @@ body {
   }
 }
 
+/* Layout adjustments for sidebar + main content */
+.app-shell {
+  display: flex;
+}
+.main-content {
+  margin-left: 240px;
+  padding: 24px;
+  width: calc(100% - 240px);
+  min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .main-content { margin-left: 0; width: 100%; padding: 12px }
+  /* ensure chat boxes use full width on very small screens */
+  .chat-box, .chat-container, .messages-container { padding-left: 6px; padding-right: 6px }
+}
+
 /* Navigation bar for chatbot switching */
 .navbar {
-  background: #10a37f;
-  padding: 1em;
-  display: flex;
-  gap: 2em;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 2em;
+  display: none; /* replaced by left sidebar */
 }
 
 .navbar a {
-  color: #fff;
+  color: var(--fg);
   text-decoration: none;
   font-weight: bold;
   font-size: 1.1rem;
@@ -631,6 +755,21 @@ body {
 
 .navbar a:hover,
 .navbar a.active {
-  background: #0d8a6f;
   text-decoration: underline;
+}
+
+/* Layout adjustments when using the left sidebar */
+.app-shell {
+  display: flex;
+}
+.main-content {
+  margin-left: 240px;
+  padding: 24px;
+  width: calc(100% - 240px);
+  min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .main-content { margin-left: 0; width: 100%; padding: 12px }
+  /* when mobile sidebar is open it sits above the content */
 }

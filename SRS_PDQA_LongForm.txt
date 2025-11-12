@@ -1,0 +1,1029 @@
+SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+PDQA — AI-POWERED SQL/NoSQL CHATBOT
+
+Project Title: PDQA — AI-Powered SQL/NoSQL Chatbot
+Repository: https://github.com/MohanManjhi/ai-powered-sql-chatbot
+
+Submitted To: Assistant Professor Ashwini Sharma
+
+Team Members:
+- Shivani Choudhary - 0801CS233D08
+- Mohan Mnajhi - 0801CS233D05
+- Anushtha Singh Kushwah - 0801CS233D01
+- Harshita Bamniya - 0801CS23D04
+- Shreyash Tiwari - 0801CS233D09
+
+Date: 30 October 2025
+
+-----------------------------------------------------------------
+
+DOCUMENT PURPOSE
+----------------
+This Software Requirements Specification (SRS) provides a comprehensive description of the PDQA project (AI-powered SQL/NoSQL Chatbot). It is intended to be used by developers, testers, QA engineers, operations staff, DBAs, and project stakeholders to understand the requirements, architecture, interfaces, data design, testing strategy, security controls, deployment plan, maintenance and support processes, and acceptance criteria.
+
+This long-form SRS expands upon the concise SRS prepared earlier and includes detailed technical sections, test case catalogs, API specifications, data models, deployment instructions, security guidelines, monitoring and logging design, backup and restore processes, performance targets, capacity planning recommendations, and operational runbook items.
+
+INTENDED AUDIENCE
+-----------------
+- Project Sponsor and Stakeholders
+- Assistant Professor (reviewer)
+- Development Team (backend, frontend, DevOps)
+- QA and Test Engineers
+- Database Administrators
+- System Administrators and Cloud/Infra Engineers
+- End-user representatives and UAT participants
+
+DOCUMENT ORGANIZATION
+---------------------
+This SRS is organized into the following major sections:
+1. Project overview and objectives
+2. Stakeholder information
+3. Scope and system overview
+4. Functional requirements (detailed)
+5. Non-functional requirements (detailed)
+6. System architecture and components
+7. Data model and schema descriptions
+8. API specification and payload examples
+9. User interface and user flows
+10. Security, privacy and compliance
+11. Testing strategy and detailed test cases (unit, integration, functional, non-functional, UAT)
+12. Deployment, operations and CI/CD
+13. Monitoring, logging and alerting
+14. Backup, recovery and data retention
+15. Performance, capacity and scalability planning
+16. Risk assessment and mitigation
+17. Project schedule, milestones and resource estimates
+18. Maintenance, support and handover
+19. Glossary and references
+20. Appendices (scripts, fixtures, sample data, checklists)
+
+SECTION 1: PROJECT OVERVIEW AND OBJECTIVES
+------------------------------------------
+1.1 Project Summary
+The PDQA project provides a unified AI-driven chatbot platform allowing users to query, explore and analyze both SQL (SQLite, PostgreSQL) and NoSQL (MongoDB) databases via natural language. The solution reduces the need for SQL expertise among business users while enabling analysts to quickly extract insights.
+
+1.2 Primary Objectives
+- Provide a robust, secure API backend capable of converting natural language to database queries (SQL and MongoDB) and executing read-only queries.
+- Offer a responsive React-based frontend with interactive chat, query editing, results tables and charting.
+- Ensure query safety, prevent data leakage and protect sensitive fields from LLM prompts.
+- Provide testable SLAs for latency, accuracy, and reliability.
+
+1.3 Success Criteria
+- The system returns correct results for a pre-defined set of NL queries against the sample dataset 95% of the time in UAT.
+- Performance targets (see Section 15) are met under the defined test loads.
+- No destructive queries are executed in tests; safety controls prevent DDL/DML from LLM outputs.
+
+SECTION 2: STAKEHOLDER INFORMATION
+---------------------------------
+2.1 Stakeholder Roles and Responsibilities
+- Product Owner: Owns feature prioritization and acceptance decisions.
+- Developers: Implement features, fix bugs and write automated tests.
+- QA/Test Engineers: Design and run test suites; verify acceptance criteria.
+- DBAs: Manage DB access, schemas, and sample dataset provisioning.
+- Infra/DevOps: Provide CI/CD, container orchestration, and monitoring.
+- End Users: Business users participating in UAT.
+
+2.2 Contact and Escalation
+- Primary contact: Mohan Mnajhi (project owner) - email: (use project contact)
+- Instructor: Assistant Professor Ashwini Sharma - primary reviewer and approver
+
+SECTION 3: SCOPE AND SYSTEM OVERVIEW
+-----------------------------------
+3.1 In Scope
+- NL-to-query conversion for SQL and MongoDB (SELECT and find operations).
+- Execution of read-only queries and returning results.
+- Schema discovery endpoint and dynamic suggestions.
+- Frontend UI for chat-based interactions and analytics charts.
+
+3.2 Out of Scope (for MVP)
+- Authentication and RBAC (planned for next phase).
+- Write operations and data modification via LLM-generated queries.
+- Real-time streaming of large data sets to the UI.
+
+3.3 Assumptions
+- LLM API keys will be available for production-grade runs; fallback heuristics are used otherwise.
+- Databases will be network-accessible from the backend.
+
+SECTION 4: FUNCTIONAL REQUIREMENTS (DETAILED)
+--------------------------------------------
+This section enumerates functional requirements (FRs) with IDs, descriptions, rationale, and acceptance tests.
+
+FR-001: Natural Language Input
+- Description: Accept NL queries via endpoint `/api/nl-to-sql` and `/api/nl-to-mongodb` (POST JSON {"question": "..."}).
+- Rationale: Primary user interaction.
+- Acceptance: Endpoint returns HTTP 200 and JSON with either `data` or `error` keys for pre-defined sample inputs.
+
+FR-002: SQL Generation
+- Description: Call LLM generator `generate_sql_from_nl` and return a mapping of database name to SQL SELECT statements. Validate queries before execution.
+- Constraints: Only SELECT statements allowed. If LLM returns non-SELECT, return error.
+
+FR-003: MongoDB Generation
+- Description: Call `generate_mongo_query_from_nl` to produce a dict with keys: db_name, collection, filter, projection, limit.
+
+FR-004: Query Execution
+- Description: Execute safe SQL across configured DB engines via `execute_sql_on_all_databases` and execute Mongo queries with `execute_mongo_query`.
+- Acceptance: Query results returned as `rows` and `columns` for SQL, or `docs` for Mongo.
+
+FR-005: Schema Endpoint
+- Description: `/api/schema` returns sanitized SQL and Mongo schemas.
+
+FR-006: Health Endpoints
+- Description: `/health` and `/api/health-details` retrieve health info for services.
+
+FR-007: Suggestion Engine
+- Description: Based on schema and question, provide suggested queries and clarifying prompts.
+
+FR-008: Caching
+- Description: Cache generated SQL queries and LLM outputs to reduce cost and latency.
+
+FR-009: Logging and Analytics
+- Description: Log user queries (redacted), generation latency, DB timings, and errors to a central analytics handler.
+
+FR-010: Export/Download
+- Description: Allow users to download query results as CSV or Excel via the UI (export functionality).
+
+SECTION 5: NON-FUNCTIONAL REQUIREMENTS (DETAILED)
+-----------------------------------------------
+5.1 Performance
+- Target P50 latency: < 400ms for cached query generation and local parsing.
+- Target P95 latency: < 2s for queries executed against local SQLite sample DB.
+
+5.2 Reliability and Availability
+- Target uptime (service level): 99.5% over a rolling 30-day window in production.
+
+5.3 Security
+- All sensitive configuration values must be stored in environment variables and not in source control.
+- Communication between frontend and backend should use TLS in production.
+
+5.4 Maintainability
+- Code should follow PEP8 and have inline docstrings for public functions.
+
+5.5 Portability
+- Application must be deployable via Docker and run on Linux-based containers.
+
+SECTION 6: SYSTEM ARCHITECTURE AND COMPONENTS
+--------------------------------------------
+6.1 High-level architecture
+- Client (browser React app) <-> Backend (Flask REST API) <-> Databases (SQLite/Postgres, MongoDB)
+- Optional: LLM provider accessed by backend (Gemini via google-generativeai).
+
+6.2 Component descriptions
+- Frontend: React components for chat UI, SQL editor, NoSQL editor, analytics charts.
+- Backend: Flask application with blueprint `main` (routes), `db.py` and `db_mongo.py` for DB access, `llm/` for generation, `utils/` for caching, validation and analytics.
+
+6.3 Deployment diagram (textual)
+- Web browser (React) -> Nginx (reverse proxy, optional) -> Gunicorn -> Flask app -> DB clients (psycopg2/sqlalchemy, pymongo) -> LLM provider
+
+6.4 Data flow
+1) User enters question in frontend.
+2) Frontend POSTs to `/api/nl-to-sql` or `/api/nl-to-mongodb`.
+3) Backend uses schema, calls LLM generator (or deterministic fallback) to produce query.
+4) Backend validates query and executes it on configured DB(s).
+5) Backend returns JSON result; frontend renders table or chart.
+
+SECTION 7: DATA MODEL AND SCHEMA DESCRIPTIONS
+-------------------------------------------
+7.1 SQL Database Architecture
+
+7.1.1 Multi-Database Support
+- System supports up to 5 concurrent SQL database connections (DATABASE_URL_1 through DATABASE_URL_5)
+- Each database managed through SQLAlchemy engine with connection pooling
+- Configuration parameters:
+  * Pool Size: Configurable via DB_POOL_SIZE
+  * Max Overflow: Set by DB_MAX_OVERFLOW
+  * Pool Timeout: Controlled by DB_POOL_TIMEOUT
+  * Default Database: 'db2' (books database) with fallback to first available
+
+7.1.2 SQL Schema Design
+a) Core Tables
+- books:
+  * id: INTEGER PRIMARY KEY
+  * title: TEXT
+  * author: TEXT
+  * year: INTEGER
+  * isbn: TEXT
+  * price: REAL
+  * Indexing: Primary key on id, recommended index on author and year
+
+- users:
+  * id: INTEGER PRIMARY KEY
+  * [Additional fields as per implementation]
+  * Indexing: Primary key on id
+
+- orders:
+  * id: INTEGER PRIMARY KEY
+  * [Additional fields as per implementation]
+  * Indexing: Primary key on id
+
+7.1.3 Schema Management
+- Dynamic schema inspection via SQLAlchemy
+- Auto-discovery of tables and columns
+- Type mapping from SQL to Python types
+- Support for multi-database schema retrieval
+
+7.2 MongoDB Architecture
+
+7.2.1 Connection Management
+- Multiple MongoDB URI support (MONGODB_URI_1 through MONGODB_URI_20)
+- Fallback connection strategy:
+  1. Explicit MONGODB_URI environment variable
+  2. Numbered URIs (MONGODB_URI_1 to MONGODB_URI_20)
+  3. Configuration fallback (Config.MONGODB_URI)
+  4. Local fallback (mongodb://localhost:27017/)
+
+7.2.2 Collection Schema Design
+- Dynamic schema discovery across all non-system databases
+- Per-collection schema inference:
+  * Field names and types from sample documents
+  * Document counts
+  * Automatic handling of ObjectId fields
+  * Special field handling for binary data and large objects
+
+7.2.3 Collection Features
+- Flexible query support:
+  * Filter queries with complex conditions
+  * Projection support for field selection
+  * Automatic limit enforcement (default: 50 documents)
+  * Cross-database collection scanning
+  * Automatic ObjectId to string conversion
+
+7.2.4 Database Organization
+- Excludes system databases (admin, local, config)
+- Multiple database support with collection-level operations
+- Automatic database resolution for collections
+- Support for cross-database queries
+
+7.3 Schema Management and Discovery
+
+7.3.1 SQL Schema Discovery
+- Automated table enumeration
+- Column name and type extraction
+- Support for multiple database engines
+- Schema caching for performance
+
+7.3.2 MongoDB Schema Discovery
+- Collection-level schema inference
+- Field type detection from sample documents
+- Document count tracking
+- Error handling for inaccessible collections
+
+7.4 Data Security and Integrity
+
+7.4.1 SQL Data Protection
+- Read-only query enforcement
+- Connection pooling for resource management
+- Automatic connection cleanup
+- Parameter binding for safe query execution
+
+7.4.2 MongoDB Data Protection
+- Projection-based field filtering
+- Automatic sensitive field redaction
+- Document limit enforcement
+- Error handling for malformed queries
+
+7.5 Performance Optimization
+
+7.5.1 SQL Optimization
+- Connection pooling configuration
+- Query result pagination
+- Efficient schema caching
+- Resource cleanup on connection release
+
+7.5.2 MongoDB Optimization
+- Index recommendations for common queries
+- Document limit enforcement
+- Projection usage for field filtering
+- Connection reuse and pooling
+
+7.6 Data Integration
+
+7.6.1 Cross-Database Operations
+- Unified query interface
+- Result format standardization
+- Error handling and reporting
+- Performance monitoring
+
+7.6.2 Schema Synchronization
+- Real-time schema discovery
+- Type mapping between systems
+- Error detection and reporting
+- Schema change monitoring
+
+7.7 Example Data Structures
+
+7.7.1 SQL Example (books table)
+```sql
+CREATE TABLE books (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    year INTEGER,
+    isbn TEXT UNIQUE,
+    price REAL
+);
+```
+
+7.7.2 MongoDB Example (images collection)
+```json
+{
+    "_id": ObjectId(),
+    "filename": "string",
+    "metadata": {
+        "size": "number",
+        "format": "string",
+        "created": "date"
+    },
+    "tags": ["array", "of", "strings"]
+}
+```
+
+7.8 Data Dictionary
+
+7.8.1 SQL Tables
+a) books
+- id: Unique identifier for each book
+- title: Book title (required)
+- author: Book author name (required)
+- year: Publication year
+- isbn: International Standard Book Number
+- price: Book price in default currency
+
+[Additional tables documented similarly]
+
+7.8.2 MongoDB Collections
+a) images
+- _id: Unique document identifier
+- filename: Name of the image file
+- metadata: Nested document with image metadata
+- tags: Array of descriptive tags
+
+[Additional collections documented similarly]
+
+SECTION 8: API SPECIFICATION AND PAYLOAD EXAMPLES
+----------------------------------------------
+All API routes use JSON and generally return `{'success': bool, 'data':..., 'error': None|str}` or specific shapes noted below.
+
+8.1 Health endpoint
+GET /health
+Response (200 OK):
+{
+  "status": "ok",
+  "pg": true,
+  "mongo": false
+}
+
+8.2 Schema endpoint
+GET /api/schema
+Response (200 OK):
+{
+  "success": true,
+  "sql_schema": {"books": ["id","title","author","year","isbn","price"], ...},
+  "mongo_schema": {"image_db": {"images": {"filename":"string","age":"int",...}}, ...}
+}
+
+8.3 NL to SQL
+POST /api/nl-to-sql
+Request body:
+{
+  "question": "Show me all books by George Orwell",
+  "db_type": "sql"
+}
+Response (200 OK success):
+{
+  "success": true,
+  "answer": "Found 1 rows",
+  "summary": "Books by George Orwell",
+  "data": [{"id":2, "title":"1984", "author":"George Orwell", "year":1949, ...}],
+  "db_type_used": "sql",
+  "performance": {"total_time": 0.45}
+}
+
+Error response example (invalid question):
+{
+  "success": false,
+  "error": "Could not parse NL to SQL. Please rephrase.",
+}
+
+8.4 /api/query (execute SQL or Mongo)
+POST /api/query
+Request body (SQL): {"sql": "SELECT * FROM books", "db_type": "sql"}
+Request body (Mongo): {"collection":"images","filter":{},"db_type":"mongo"}
+
+8.5 NoSQL execute endpoint
+POST /nosql/execute
+Request: {"query": "db.images.find({\"age\":{\"$gt\":5}})"}
+Response: {"docs": [{...}], "error": null}
+
+8.6 Error codes and handling
+- 400 Bad Request: Missing or invalid JSON input.
+- 401 Unauthorized: If authentication is added in future.
+- 403 Forbidden: Attempt to run disallowed query.
+- 500 Internal Server Error: Unhandled server exception.
+
+SECTION 9: USER INTERFACE AND USER FLOWS
+--------------------------------------
+9.1 Key UI Screens
+- Master Chat screen (natural language box, suggestions, results area)
+- SQL Chat screen (query editor, execute button, results grid)
+- NoSQL Chat screen (text area for db.find queries, results)
+- Analytics view (chart rendering, aggregation options)
+
+9.2 Typical User Flow (NL -> SQL -> Result)
+1) User opens Master chat, types: "Show me all books after 1950".
+2) Frontend POSTs to `/api/nl-to-sql`.
+3) Backend generates SQL: SELECT id,title,author,year FROM books WHERE year > 1950;
+4) Backend executes on SQLite and returns rows.
+5) Frontend displays table and detects numeric fields for potential charting (user can click "Plot").
+
+9.3 Error and suggestion flow
+- If backend returns an ambiguous query error, frontend shows clarification suggestions and highlights sample clarifying questions.
+
+SECTION 10: SECURITY, PRIVACY AND COMPLIANCE
+-----------------------------------------
+SECTION 10: SECURITY, PRIVACY AND COMPLIANCE
+-----------------------------------------
+
+10.1 Comprehensive Security Architecture
+
+10.1.1 Query Security Layer
+a) SQL Query Validation
+- Strict SELECT-only policy enforcement
+- Regular expression-based query validation:
+  * Whitelist approach for SELECT statements
+  * Blacklist for dangerous keywords (UPDATE, DELETE, INSERT, DROP, ALTER, CREATE)
+- SQL injection prevention through:
+  * Parameter binding via SQLAlchemy
+  * Query sanitization and cleaning
+  * Markdown code fence removal
+  * Whitespace normalization
+
+b) MongoDB Query Security
+- Collection-level access control
+- Query projection filtering
+- Document limit enforcement
+- Automatic ObjectId handling
+- Binary data field protection
+
+c) Natural Language Processing Security
+- Input sanitization for LLM prompts
+- Schema sanitization:
+  * Removal of sensitive field names
+  * Omission of binary data fields
+  * PII field redaction
+- Context validation
+- Response filtering
+
+10.2 Access Control and Authentication
+
+10.2.1 Database Access Control
+a) SQL Databases
+- Connection pooling with configurable limits
+- Read-only query enforcement
+- Database-specific access controls
+- Connection timeout management
+
+b) MongoDB Access
+- URI-based authentication
+- Database-level access restrictions
+- Collection-level permissions
+- Automatic connection cleanup
+
+10.2.2 API Security
+- Request validation
+- JSON payload verification
+- Rate limiting implementation
+- Session management (future enhancement)
+- CORS policy enforcement
+
+10.3 Data Protection
+
+10.3.1 Data in Transit
+- TLS encryption for all API communications
+- Secure database connections
+- HTTPS enforcement
+- WebSocket security (if implemented)
+
+10.3.2 Data at Rest
+- Environment variable protection
+- Secret management:
+  * Database credentials
+  * API keys
+  * Configuration values
+- Secure storage recommendations
+
+10.3.3 Data Privacy
+- PII identification and protection
+- Data masking rules
+- Field-level security
+- Export controls
+
+10.4 Audit and Compliance
+
+10.4.1 Logging Security
+- Sensitive data redaction
+- Log level controls
+- Access log management
+- Error log protection
+
+10.4.2 Audit Trail
+- Query execution logging
+- Schema access tracking
+- Error recording
+- Performance metric collection
+
+10.5 Security Controls Implementation
+
+10.5.1 Input Validation
+```python
+def is_safe_query(sql):
+    sql = sql.strip().lower()
+    return (
+        sql.startswith("select") and 
+        not re.search(r"\b(update|delete|insert|drop|alter|create)\b", sql)
+    )
+```
+
+10.5.2 Query Execution Security
+```python
+def execute_safe_sql(sql, engine):
+    sql = clean_sql(sql)
+    if not is_safe_query(sql):
+        return {"error": "Only safe SELECT queries are allowed."}
+    stmt = text(sql)  # Always use parameterized queries
+    with engine.connect() as connection:
+        result = connection.execute(stmt)
+        return {"success": True, "rows": [...]}
+```
+
+10.6 Security Testing Requirements
+
+10.6.1 Regular Security Tests
+- SQL injection testing
+- MongoDB injection testing
+- API security testing
+- Authentication testing
+- Access control verification
+
+10.6.2 Security Scanning
+- Dependency vulnerability scanning
+- Code security analysis
+- Container security scanning
+- Network security testing
+
+10.7 Security Monitoring
+
+10.7.1 Real-time Monitoring
+- Query pattern analysis
+- Error rate monitoring
+- Access pattern tracking
+- Resource usage monitoring
+
+10.7.2 Security Alerting
+- Suspicious query detection
+- Error threshold alerts
+- Access violation notifications
+- Resource exhaustion warnings
+
+10.8 Incident Response
+
+10.8.1 Security Incident Handling
+- Incident classification
+- Response procedures
+- Escalation paths
+- Recovery processes
+
+10.8.2 Security Documentation
+- Security controls documentation
+- Incident response playbooks
+- Recovery procedures
+- Security training materials
+
+10.9 Compliance Requirements
+
+10.9.1 Data Protection Standards
+- GDPR considerations
+- Data privacy requirements
+- Data retention policies
+- Export restrictions
+
+10.9.2 Security Standards
+- OWASP compliance
+- Security best practices
+- Industry standards
+- Local regulations
+
+10.10 Security Roadmap
+
+10.10.1 Current Security Controls
+- Query validation
+- Data protection
+- Access control
+- Logging security
+
+10.10.2 Future Security Enhancements
+- Authentication system
+- Role-based access control
+- Enhanced audit logging
+- Advanced monitoring
+
+SECTION 11: TESTING STRATEGY AND DETAILED TEST CASES
+-------------------------------------------------
+Overview: This section provides a test plan with detailed test cases across unit, integration, functional, non-functional and UAT tests. The test cases are specified with ID, purpose, preconditions, steps, expected results, and postconditions.
+
+11.1 Unit Tests (examples)
+UT-001: Test `generate_mongo_query_from_nl` — basic
+- Purpose: Verify heuristic mapping for common phrases.
+- Preconditions: None.
+- Steps:
+  1. Call `generate_mongo_query_from_nl("Show me all images")`.
+  2. Inspect returned dict.
+- Expected:
+  - dict contains keys: `db_name`,`collection`,`filter`,`projection`,`limit`.
+  - `collection` equals 'images' or a reasonable mapping.
+
+UT-002: Test SQL generation reject non-SELECT
+- Purpose: Ensure generated SQL that isn't SELECT is rejected.
+- Steps:
+  1. Mock LLM to return "DROP TABLE users;".
+  2. Call `generate_sql_from_nl` with a question.
+  3. Verify response contains error code and no execution occurs.
+
+11.2 Integration Tests (examples)
+IT-001: API schema endpoint
+- Purpose: Validate `/api/schema` returns expected structure.
+- Steps:
+  1. Start backend (test config) with sample SQLite DB.
+  2. GET `/api/schema`.
+- Expected:
+  - HTTP 200, JSON contains `sql_schema` with `books` table present.
+
+IT-002: End-to-end SQL query against SQLite
+- Purpose: Verify query pipeline for SELECT queries.
+- Steps:
+  1. POST to `/api/query` with `{"sql":"SELECT title FROM books WHERE year > 1900","db_type":"sql"}`.
+  2. Verify HTTP 200 and rows count matches expected sample DB.
+
+11.3 Functional Tests (examples)
+FT-001: NL to SQL flow (happy path)
+- Steps:
+  1. POST `/api/nl-to-sql` with `{"question":"List all books"}`.
+  2. Expect JSON with `success: true`, `data` non-empty.
+
+FT-002: Visualization intent detection
+- Steps:
+  1. POST `/api/nl-to-sql` with `"Show sales by month as a line chart"`.
+  2. Expect `chart_request: true` in response and `data` includes time-series rows.
+
+11.4 Non-Functional Tests (examples)
+NF-001: Load test (k6)
+- Goal: Validate backend under 100 RPS for simple read queries.
+- Procedure: Use k6 script to POST `/api/query` repeatedly with `SELECT * FROM books LIMIT 1` and measure latencies.
+- Expected: Median < 200ms, P95 < 1s, error rate < 1%.
+
+NF-002: Security scan
+- Run `pip-audit` and `bandit` against codebase.
+
+11.5 UAT Test Cases (detailed)
+UAT-001: Business user scenario
+- Description: Typical analyst asks multiple domain-specific questions and validates returned results.
+- Steps:
+  1. Use frontend Master chat to ask: "Show me all books by Jane Austen".
+  2. Verify returned rows contain 'Pride and Prejudice'.
+  3. Export results to CSV and verify the CSV file contains matching records.
+
+11.6 Test Matrices
+- Map each functional requirement to the test cases that verify it. (An exhaustive traceability matrix is attached in Appendix A.)
+
+SECTION 12: DEPLOYMENT, OPERATIONS AND CI/CD
+-------------------------------------------
+12.1 Local development setup
+1. Clone repository: `git clone https://github.com/MohanManjhi/ai-powered-sql-chatbot`.
+2. Backend virtualenv and install:
+   - `python3 -m venv .venv`
+   - `source .venv/bin/activate`
+   - `pip install -r backend/requirements.txt`
+3. Frontend install: `cd frontend && npm install` (Node 18+ required)
+
+12.2 Running locally
+- Backend: `python3 app.py` (development) or `python3 backend/run.py`.
+- Frontend: `cd frontend && npm start`.
+
+12.3 Docker deployment (recommended for staging/production)
+1. Build backend image: `docker build -t pdqa-backend -f backend/Dockerfile .` (if Dockerfile present)
+2. Build frontend image: `docker build -t pdqa-frontend -f frontend/Dockerfile .`
+3. Use `docker-compose.yml` to orchestrate services.
+
+12.4 CI/CD recommendations
+- GitHub Actions workflow steps:
+  - Checkout, setup Python and Node, install dependencies.
+  - Run linters and static analysis (`flake8`/`bandit`).
+  - Run unit tests and integration tests (with services via docker-compose or mocked services).
+  - Publish coverage and artifacts (SRS PDF generation, test reports).
+
+SECTION 13: MONITORING, LOGGING AND ALERTING
+------------------------------------------
+13.1 Logging conventions
+- JSON structured logs with fields: timestamp, request_id, user_id (if present), route, latency_ms, db_time_ms, status_code, error_code, message.
+
+13.2 Metrics to capture
+- API request count, latency histogram, error counts, DB query times, LLM call counts and latencies, cache hit/miss rates.
+
+13.3 Alerting thresholds
+- API error rate > 5% for 5 minutes -> page on-call.
+- LLM failure rate > 10% for 10 minutes -> alert.
+- DB connectivity failures -> page DBA.
+
+13.4 Dashboards
+- Create dashboards for API latency, throughput, DB health, and error trends (Grafana/Prometheus recommended).
+
+SECTION 14: BACKUP, RECOVERY AND DATA RETENTION
+---------------------------------------------
+14.1 Backup strategy
+- SQLite: Periodic copies of the DB file to object storage with retention policy.
+- Mongo/Postgres: Use native backup tools (mongodump, pg_dump) scheduled daily and retained for 30 days.
+
+14.2 Recovery procedure
+1. Restore DB from latest backup to a recovery environment.
+2. Run smoke tests (API endpoints and a small set of queries) to verify data integrity.
+
+14.3 Data retention policy
+- Sample data retained in test/staging indefinitely; production data retention aligns with organization policy (e.g., 90 days for query logs, 7 years for audit logs as required).
+
+SECTION 15: PERFORMANCE, CAPACITY AND SCALABILITY PLANNING
+-------------------------------------------------------
+SECTION 15: PERFORMANCE, CAPACITY AND SCALABILITY PLANNING
+-------------------------------------------------------
+
+15.1 Performance Architecture
+
+15.1.1 Response Time Targets
+a) API Response Times
+- Baseline (light load):
+  * P50 latency: < 400ms for cached responses
+  * P95 latency: < 2s for database queries
+  * P99 latency: < 5s for LLM-generated queries
+
+b) Component-specific SLAs
+- Database Operations:
+  * Query execution: < 500ms (P95)
+  * Schema retrieval: < 100ms (P95)
+- LLM Operations:
+  * Query generation: < 3s (P95)
+  * Response processing: < 1s (P95)
+- Frontend Operations:
+  * Initial load: < 2s
+  * Subsequent interactions: < 500ms
+
+15.1.2 Throughput Targets
+- Concurrent users: 100 simultaneous users
+- Query rate: 100 RPS sustained
+- Database connections: 10-30 concurrent (configurable)
+- WebSocket connections: 200 concurrent (if implemented)
+
+15.2 System Configuration
+
+15.2.1 Timeout Configuration
+```python
+# Request timeouts
+REQUEST_TIMEOUT = 30  # seconds
+LLM_TIMEOUT = 25     # seconds
+CACHE_TIMEOUT = 300  # 5 minutes
+
+# Database connection pool
+DB_POOL_SIZE = 10
+DB_MAX_OVERFLOW = 20
+DB_POOL_TIMEOUT = 30
+```
+
+15.2.2 LLM Optimization
+```python
+# LLM Performance Settings
+GEMINI_MODEL = "models/gemini-2.5-flash"  # Optimized for speed
+MAX_TOKENS = 1000                         # Response length limit
+TEMPERATURE = 0.1                         # Focused responses
+```
+
+15.3 Resource Optimization
+
+15.3.1 Database Optimization
+a) Connection Pooling
+- Base pool size: 10 connections
+- Maximum overflow: 20 additional connections
+- Pool timeout: 30 seconds
+- Connection recycling strategy
+
+b) Query Optimization
+- Index usage guidelines
+- Query complexity limits
+- Result set pagination
+- Connection management
+
+15.3.2 Memory Management
+a) Backend Memory
+- Process memory limits
+- Cache size controls
+- Connection pool memory
+- Result set buffering
+
+b) Frontend Memory
+- DOM element limits
+- Result set pagination
+- Memory leak prevention
+- Resource cleanup
+
+15.4 Caching Strategy
+
+15.4.1 Multi-level Caching
+a) Application Cache
+- Query results: 5-minute TTL
+- Schema information: 1-hour TTL
+- LLM responses: 24-hour TTL
+- User preferences: Session duration
+
+b) Database Cache
+- Query plan cache
+- Result set cache
+- Connection pool
+- Metadata cache
+
+15.4.2 Cache Management
+- Cache invalidation rules
+- Memory limits
+- Eviction policies
+- Refresh strategies
+
+15.5 Scalability Design
+
+15.5.1 Horizontal Scaling
+a) Application Layer
+- Stateless design
+- Load balancer configuration
+- Session management
+- Cache synchronization
+
+b) Database Layer
+- Read replicas
+- Connection distribution
+- Query routing
+- Failover handling
+
+15.5.2 Vertical Scaling
+a) Resource Allocation
+- CPU optimization
+- Memory management
+- Disk I/O tuning
+- Network configuration
+
+b) Component Optimization
+- Database query optimization
+- LLM prompt optimization
+- Cache utilization
+- Connection pooling
+
+15.6 Performance Monitoring
+
+15.6.1 Metrics Collection
+a) System Metrics
+- CPU utilization
+- Memory usage
+- Disk I/O
+- Network traffic
+
+b) Application Metrics
+- Request latency
+- Query execution time
+- Cache hit rates
+- Error rates
+
+15.6.2 Performance Alerts
+- Response time thresholds
+- Error rate thresholds
+- Resource utilization limits
+- Cache effectiveness
+
+15.7 Load Testing
+
+15.7.1 Test Scenarios
+a) Basic Load Test
+- 100 concurrent users
+- 100 RPS sustained
+- 30-minute duration
+- Success rate > 99%
+
+b) Stress Test
+- 200 concurrent users
+- 200 RPS peak
+- 15-minute duration
+- Success rate > 95%
+
+15.7.2 Performance Acceptance Criteria
+- Median response time < 400ms
+- P95 response time < 2s
+- Error rate < 1%
+- CPU usage < 80%
+
+15.8 Optimization Guidelines
+
+15.8.1 Query Optimization
+- Use appropriate indexes
+- Limit result sets
+- Optimize joins
+- Use query analysis tools
+
+15.8.2 Application Optimization
+- Enable compression
+- Minimize payload size
+- Use connection pooling
+- Implement caching
+
+15.9 Capacity Planning
+
+15.9.1 Resource Requirements
+a) Production Environment
+- CPU: 4+ cores
+- Memory: 8+ GB RAM
+- Disk: 50+ GB SSD
+- Network: 1+ Gbps
+
+b) Scaling Triggers
+- CPU usage > 70%
+- Memory usage > 80%
+- Response time > 2s
+- Error rate > 1%
+
+15.9.2 Growth Planning
+- 6-month projection
+- Resource scaling plan
+- Performance monitoring
+- Optimization roadmap
+
+SECTION 16: RISK ASSESSMENT AND MITIGATION
+----------------------------------------
+16.1 Identified risks
+- R1: LLM returns unsafe or incorrect queries.
+- R2: LLM not available or rate-limited.
+- R3: Sensitive data leakage through LLM prompts.
+
+16.2 Mitigation strategies
+- R1: Implement strict validation/parsing to reject non-SELECT and suspicious SQL; maintain a fallback heuristic.
+- R2: Support offline heuristic generators and cache previous responses.
+- R3: Sanitize schema and redact sensitive fields; maintain an allowlist/denylist for fields passed to LLM prompts.
+
+SECTION 17: PROJECT SCHEDULE, MILESTONES AND RESOURCE ESTIMATES
+------------------------------------------------------------
+17.1 Milestones
+- M1: Initial prototype and sample DB integration — Complete
+- M2: Core API endpoints and safe execution — Complete
+- M3: Frontend chat UI and analytics — Complete
+- M4: Automated tests and CI integration — Next 2 weeks
+- M5: Staging deployment with monitoring — Next 4 weeks
+
+17.2 Resource estimates
+- Development: 3-4 engineers for 6 weeks to harden features and tests.
+- DevOps: 1 engineer for 2 weeks to create CI/CD pipelines and monitoring.
+
+SECTION 18: MAINTENANCE, SUPPORT AND HANDOVER
+-------------------------------------------
+18.1 Handover checklist
+- Document environment variables and deployment instructions.
+- Provide runbook for common recovery tasks.
+- Ensure tests and fixtures are present and easy to run.
+
+18.2 Support model
+- Tier-1: Developers handle bug triage and immediate fixes.
+- Tier-2: DBAs for data and performance issues.
+
+SECTION 19: GLOSSARY AND REFERENCES
+-----------------------------------
+- LLM: Large Language Model (e.g., Google Gemini).
+- NL: Natural Language.
+- API: Application Programming Interface.
+- DB: Database.
+
+References:
+- Project repository: https://github.com/MohanManjhi/ai-powered-sql-chatbot
+- Backend requirements: `backend/requirements.txt`
+
+SECTION 20: APPENDICES
+----------------------
+Appendix A: Traceability Matrix (summary)
+- FR-001 -> UT-001, IT-002, FT-001
+- FR-002 -> UT-002, IT-002
+- FR-003 -> UT-001, IT-003
+
+Appendix B: Sample API Requests and Responses
+- See Section 8 for sample JSON payloads.
+
+Appendix C: Detailed Test Case Catalog (excerpts)
+- A full spreadsheet with test cases and expected outputs should be added to `tests/` in the repository; include IDs and mapping to FRs.
+
+Appendix D: Troubleshooting checklist
+1. If backend fails to start: ensure `.env` variables present and DB path correct.
+2. If Mongo unreachable: check `MONGODB_URI` and firewall rules.
+
+Appendix E: Contact and support
+- Project owner: Mohan Mnajhi (contact in repo)
+
+-----------------------------------------------------------------
+
+END OF DOCUMENT

@@ -1,0 +1,73 @@
+Project Overview and Objectives
+-----------------------------
+A unified AI-driven chatbot platform enabling users to query, explore, and analyze both SQL (SQLite, PostgreSQL) and NoSQL (MongoDB) databases using natural language. The goal is to lower the technical barrier to database analytics, empowering business users and analysts to retrieve insights without writing code or raw queries. The application aims to be intuitive, fast, secure, and extensible for production scenarios.
+
+Stakeholder Information
+-----------------------
+Primary Stakeholders: Business/data analysts, software engineers, database administrators, project/product managers, and non-technical business users seeking easier data access.
+Secondary Stakeholders: Infrastructure/IT teams, compliance and security officers (for auditability, logs), executive sponsors.
+
+Functional Requirements
+-----------------------
+- Natural language question to SQL/MongoDB query conversion using an LLM backend (Google Gemini or similar).
+- Execute user-defined data questions/requests on both SQL and NoSQL backends.
+- Display tabular results, with support for charting (analytics) based on detected intent.
+- Show database schema summaries and dynamic, context-aware suggestions.
+- API endpoints for health, schema, analytics, and query execution.
+- User feedback, suggestions, and error handling in plain language.
+- Ready for multi-user workflows (stateless REST, isolated query sessions).
+- Modular frontend and backend (easy to extend to more databases or AI models).
+
+Non-Functional Requirements
+---------------------------
+* **Performance**: Target sub-second response for common queries; fallback API/LLM timeouts (25-30s max).
+* **Security**: Never exposes generated SQL to the frontend; query logging; strips sensitive fields before LLM; environment-configurable DB URIs.
+* **Scalability**: Connection pooling on server; supports large DBs, suitable for containerized deployment (Docker).
+* **Availability**: Health checks for each backend (SQL, Mongo), robust fallback logic if a backend is unreachable.
+* **Maintainability**: Modularized backend (`app/`, `utils/`, etc.), frontend in React, easy .env configuration.
+
+System Architecture and Technology Stack
+---------------------------------------
+* **Frontend**: React.js (component-driven UI, chatbots for SQL/Mongo/Analytics, sidebar navigation)
+* **Backend**: Flask (Python 3.12+); REST/JSON APIs
+* **Databases**: SQLite, PostgreSQL (SQLAlchemy), MongoDB (pymongo)
+* **AI/LLM**: Google Gemini (or compatible, pluggable model interface)
+* **Deployment**: Docker; flexible .env for all critical config; CORS and API-layer security
+* **Separation**: Dedicated modules for DB handling, LLM interfacing, caching, analytics
+
+User Roles and Permissions
+--------------------------
+* Default: Open (no login), for demo and first-phase use
+* Future-ready for Role-Based Access Control (RBAC), e.g., viewers (can only read), admins (can configure), analysts (can export)
+
+Business Rules and Constraints
+------------------------------
+* Only sanitized, generated queries are executed (user can never submit raw SQL or DB commands)
+* Large/binary fields are filtered from schema/context to ensure LLM safety
+* SQL is never exposed directly to the frontend or the user
+* All database actions are stateless and idempotent per session
+* Logging of query types, schema accesses, and backend health events is required
+
+Testing Requirements
+---------------------
+* **Unit Testing**: Python and JS utility modules
+* **Integration Testing**: Complete endpoint tests (API responses for SQL/Mongo/chat)
+* **Functional Testing**: End-to-end flow (ask question, get tabular/chart insight)
+* **Non-Functional Testing**: Performance under concurrent load; LLM timeouts; security endpoint tests
+* **User Acceptance Testing (UAT)**: Direct evaluation by target users—can they get answers to their data questions, is the system usable and robust
+
+Acceptance Criteria
+-------------------
+* A business/domain user can ask a question about any connected database and get a correct answer, table, or chart
+* System supports both major DB paradigms (SQL and NoSQL)
+* Suggestions and schema overview work without prior knowledge
+* If a query fails, user receives actionable suggestions or feedback
+* Health and analytics endpoints function as designed
+
+Dependencies and Assumptions
+---------------------------
+* Python 3.12+, Flask, SQLAlchemy, dotenv, pymongo
+* Node.js 18+, React 18+
+* At least one SQL or MongoDB connection configured with sample/test data
+* Access to LLM endpoint (Google Gemini API or equivalent, properly configured)
+* Deployment on Docker or similar environments with .env support
