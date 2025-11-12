@@ -204,18 +204,23 @@ function MasterChatbot() {
   return (
     <div className="App">
       <div className="chat-container">
-        <div className="chat-header">
-          <h1>🤖 AI SQL Chatbot</h1>
-          <p>Ask questions about your database in natural language</p>
+        <div className="chat-header master-hero">
+          <div className="hero-left">
+            <h1>AI Database Assistant</h1>
+            <p>Ask natural-language questions about any connected database (SQL or MongoDB). I'll find the data and explain the results in plain language.</p>
+          </div>
+          <div className="hero-right">
+            <div className="hero-badge">Unified DB • SQL + NoSQL</div>
+          </div>
         </div>
 
         <div className="messages-container">
           {messages.length === 0 && (
             <div className="welcome-message">
               <div className="welcome-icon">💬</div>
-              <h3>Welcome to AI SQL Chatbot!</h3>
+              <h3>Welcome to your Database Assistant!</h3>
               <p>
-                This database contains multiple tables. You don’t need to know their names — just ask your question in plain language (e.g., “show me monthly sales” or “top customers by revenue”). I’ll automatically find the right tables and generate the results for you. If you’d like, I can also show you which tables I’m using.
+                This assistant works across your connected SQL and NoSQL databases. You don't need to know table or collection names — just ask in plain language (for example, “show monthly sales” or “top customers by revenue”), and I'll locate the data and explain it.
               </p>
               {schemaOverview && (
                 <div className="message-summary" style={{ textAlign: 'left' }}>
@@ -301,29 +306,7 @@ function MasterChatbot() {
                     <span className="summary-text">{message.summary}</span>
                   </div>
                 )}
-                {message.data && message.data.length > 0 && (
-                  <div className="message-suggestions">
-                    <div className="suggestion-chips">
-                      <div className="suggestion-chip" onClick={() => {
-                        setCurrentAnalyticsData(message.data);
-                        setCurrentQuestion(message.text || 'Data Analysis');
-                        setCurrentSql('');
-                        setCurrentChartType(message.chart_request?.type || 'auto');
-                        setShowAnalytics(true);
-                      }}>Create Chart</div>
-                      <div className="suggestion-chip" onClick={() => {
-                        setCurrentAnalyticsData(message.data);
-                        setCurrentQuestion(message.text || 'Data Export');
-                        setCurrentSql('');
-                        setCurrentChartType('auto');
-                        setShowAnalytics(true);
-                      }}>Download</div>
-                    </div>
-                    <div style={{ marginTop: 6, color: '#6b7280', fontSize: '0.9rem' }}>
-                      👉 Do you want to create a chart of this data? Or do you want to download it?
-                    </div>
-                  </div>
-                )}
+                {/* removed Create Chart / Download action buttons from Master UI to keep it focused and standalone */}
                 {message.suggestions && (
                   <div className="message-suggestions">
                     <div className="suggestion-chips">

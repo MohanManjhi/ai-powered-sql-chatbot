@@ -1,7 +1,16 @@
+import os
+import sys
+import signal
+
+# Ensure the backend folder (this file's directory) is first on sys.path so
+# Python imports the local `app` package (backend/app) instead of any
+# top-level module named `app.py` in the project root.
+BASE_DIR = os.path.dirname(__file__)
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 from app import create_app
 from config import Config
-import signal
-import sys
 
 app = create_app()
 

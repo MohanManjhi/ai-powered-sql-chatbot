@@ -500,11 +500,11 @@ def nl_to_sql():
     try:
         data = request.get_json()
         question = data.get("question", "")
-        
-        # --- 0. Initial Checks (db_type agnostic) ---
-        
-        # If it's a greeting, handle it using the default database type provided in the request
         db_type_hint = data.get("db_type", "sql").lower()
+        if db_type_hint not in ["sql", "mongo"]:
+            return jsonify({"error": "Invalid db_type. Must be 'sql' or 'mongo'."}), 400
+        if db_type_hint not in ["sql", "mongo"]:
+            return jsonify({"error": "Invalid db_type. Must be 'sql' or 'mongo'."}), 400
         if is_greeting_or_general(question):
             return handle_greeting_or_general(question, db_type_hint)
 
